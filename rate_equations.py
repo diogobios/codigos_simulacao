@@ -20,7 +20,20 @@ class Data:
         self.from_state = from_state
         self.to_state = to_state
 
-        
+
+class DataParam:
+    def __init__(
+        self, rad_em, nrad_em, em_state, abs_state, data_list, output_fname, sens_exp
+    ):
+        self.rad_em = rad_em
+        self.nrad_em = nrad_em
+        self.em_state = em_state
+        self.abs_state = abs_state
+        self.data_list = data_list
+        self.output_fname = output_fname
+        self.sens_exp = sens_exp
+  
+  
 MapStates = collections.namedtuple("MapStates", "index_ value")
 
 DataList = List[Data]
@@ -312,3 +325,4 @@ if __name__ == "__main__":
         
         print(x)
         objective_function(x, data)
+        
