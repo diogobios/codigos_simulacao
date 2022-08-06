@@ -10,13 +10,8 @@ from typing import List
 import functools
 import multiprocessing as mp
 
-CPU = 10
 
 to_parametrize = [("S1", "S0", 8), ("S1", "T1", 8), ("T1", "S0", 8)]
-
-
-PARAMETRIZE = False
-TEST_RATES = True
 
 
 class Data:
@@ -25,22 +20,7 @@ class Data:
         self.from_state = from_state
         self.to_state = to_state
 
-
-class DataParam:
-    resp_min = 1e10
-
-    def __init__(
-        self, rad_em, nrad_em, em_state, abs_state, data_list, output_fname, sens_exp
-    ):
-        self.rad_em = rad_em
-        self.nrad_em = nrad_em
-        self.em_state = em_state
-        self.abs_state = abs_state
-        self.data_list = data_list
-        self.output_fname = output_fname
-        self.sens_exp = sens_exp
-
-
+        
 MapStates = collections.namedtuple("MapStates", "index_ value")
 
 DataList = List[Data]
@@ -270,7 +250,7 @@ def run_objective_function(x_data):
 
 
 def run_parallel(x_data):
-    with mp.Pool(CPU) as pool:
+    with mp.Pool(10) as pool:
         result = pool.map(run_objective_function, x_data)
 
     return result
