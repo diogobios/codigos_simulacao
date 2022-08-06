@@ -10,6 +10,7 @@ from typing import List
 import functools
 import multiprocessing as mp
 
+is_create_output_file = False
 
 to_parametrize = [("S1", "S0", 8), ("S1", "T1", 8), ("T1", "S0", 8)]
 
@@ -23,7 +24,7 @@ class Data:
 
 class DataParam:
     def __init__(
-        self, rad_em, nrad_em, em_state, abs_state, data_list, output_fname, sens_exp
+        self, rad_em, nrad_em, em_state, abs_state, data_list, output_fname
     ):
         self.rad_em = rad_em
         self.nrad_em = nrad_em
@@ -31,7 +32,6 @@ class DataParam:
         self.abs_state = abs_state
         self.data_list = data_list
         self.output_fname = output_fname
-        self.sens_exp = sens_exp
   
   
 MapStates = collections.namedtuple("MapStates", "index_ value")
@@ -46,7 +46,7 @@ def objective_function(x, data):
         for i, d in enumerate(to_parametrize)
     ]
 
-    sens_calc = quantum_yield(
+    q = quantum_yield(
         data.rad_em,
         data.nrad_em,
         data.em_state,
@@ -56,8 +56,7 @@ def objective_function(x, data):
         parametrize,
     )
 
-    resp = (abs(sens_calc - data.sens_exp) / data.sens_exp) * 100
-    return resp, data.sens_exp, sens_calc
+    return q
 
 
 def mapped_states_sort_key(t: MapStates):
@@ -241,25 +240,26 @@ def quantum_yield(
         / (populations[idx_abs_state] * absorbing_rate[0])
     )
     ef = (rad_em / (rad_em + nrad_em)) * 100
-
-    create_output_file(
-        outfile_name,
-        data_list,
-        list(zip(states, populations)),
-        rad_em,
-        nrad_em,
-        em_state,
-        abs_state,
-        q,
-        ef,
-    )
-    return (q / ef) * 100
+    
+    if is_create_output_file:
+        create_output_file(
+            outfile_name,
+            data_list,
+            list(zip(states, populations)),
+            rad_em,
+            nrad_em,
+            em_state,
+            abs_state,
+            q,
+            ef,
+        )
+    return q
 
 
 def run_objective_function(x_data):
     x, data = x_data
-    resp, sens_exp, sens_calc = objective_function(x, data)
-    return (x, sens_exp, sens_calc, resp)
+    q = objective_function(x, data)
+    return (x, q)
 
 
 def run_parallel(x_data):
@@ -275,16 +275,14 @@ if __name__ == "__main__":
         input_data.append(
             {
                 "fname": fname,
-                "sens_exp": 100,
                 "output_fname": fname.replace(".rates", ".yield"),
             }
         )
 
     for inp in input_data:
         fname = inp.get("fname")
-        sens_exp = inp.get("sens_exp")
         output_fname = inp.get("output_fname")
-        print(fname, sens_exp, output_fname)
+        print(fname, output_fname)
         try:
             rad_em, nrad_em, em_state, abs_state, data_list = read_input_data(fname)
         except:
@@ -296,7 +294,7 @@ if __name__ == "__main__":
         print("----------------------------------")
 
         data = DataParam(
-            rad_em, nrad_em, em_state, abs_state, data_list, output_fname, sens_exp
+            rad_em, nrad_em, em_state, abs_state, data_list, output_fname,
         )
        
         values = [range(11) for _ in range(len(to_parametrize))]
@@ -306,7 +304,7 @@ if __name__ == "__main__":
 
         buffer = run_parallel(x_data)
 
-        buffer.sort(key=lambda l: l[-1])
+        buffer.sort(reverse=True, key=lambda l: l[-1])
         with open(fname.replace(".rates", ".simul"), "w") as output:
             trans = [
                 f"{to_parametrize[i][0]}_{to_parametrize[i][1]} "
@@ -319,10 +317,4 @@ if __name__ == "__main__":
             for b in buffer:
                 for v in b[0]:
                     output.write(f"1e{v}   ")
-                output.write(f"{b[-3]:>7.2f}  {b[-2]:.2f}  {b[-1]:.4f}\n")
-
-        x = [int(f"{v}".replace("1e", "")) for v in buffer[0][0]]
-        
-        print(x)
-        objective_function(x, data)
-        
+                output.write(f"{b[-1]:.4f}\n")
